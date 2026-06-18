@@ -1,0 +1,56 @@
+version: '3.8'
+
+# TechCargo — Full Stack (VPS deployment)
+# Incluye: web server, WhatsApp bot, HTTPS con Caddy
+
+services:
+
+  # ── Web App (IMEI scanner + cuentas) ──────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file: .env
+    environment:
+      - APP_DATA_DIR=/data
+    volumes:
+      - techcargo_data:/data
+    expose:
+      - "8080"
+    labels:
+      - "caddy=tu-dominio.com"
+      - "caddy.reverse_proxy={{upstreams 8080}}"
+
+  # ── WhatsApp Bot ───────────────────────────────────────────────────────────
+  wpp:
+    build:
+      context: .
+      dockerfile: Dockerfile.wpp
+    restart: always
+    env_file: .env
+    environment:
+      - APP_DATA_DIR=/data
+      - WPP_SESSION_PATH=/data/.wpp_session
+    volumes:
+      - techcargo_data:/data
+    shm_size: '256mb'
+
+  # ── HTTPS reverse proxy (Caddy) ────────────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  techcargo_data:   # datos compartidos entre web y wpp (token.json, colors.json)
+  caddy_data:
+  caddy_config:
