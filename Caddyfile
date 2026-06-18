@@ -1,0 +1,6 @@
+# Reemplazá "tu-dominio.com" con tu dominio real
+# Caddy obtiene el certificado SSL automáticamente (gratis, Let's Encrypt)
+
+tu-dominio.com {
+    reverse_proxy web:8080
+}
