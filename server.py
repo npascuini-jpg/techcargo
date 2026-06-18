@@ -415,7 +415,7 @@ HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>TechCargo</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" onerror="window._qrFailed=true"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f0f0f; color: #fff; min-height: 100vh; padding-bottom: 72px; }
@@ -430,16 +430,23 @@ HTML = """<!DOCTYPE html>
   .tab-btn.active { color: #007aff; }
 
   /* Header */
-  .header { display: flex; align-items: center; gap: 12px; padding: 16px 0 20px; }
-  .header h1 { font-size: 20px; font-weight: 700; }
+  .header { display: flex; align-items: center; gap: 12px; padding: 16px 0 12px; }
+  .header h1 { font-size: 20px; font-weight: 700; flex: 1; }
   .back-btn { background: #1e1e1e; border: none; color: #fff; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 16px; }
 
-  /* Cards */
-  .card { background: #1e1e1e; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
-  .card-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-  .card-value { font-size: 16px; font-weight: 600; }
+  /* Stats chips */
+  .stats-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chip { background: #1e1e1e; border-radius: 20px; padding: 6px 14px; font-size: 13px; font-weight: 600; }
+  .chip.green { color: #34c759; }
+  .chip.orange { color: #ff9500; }
+  .chip.gray { color: #888; }
 
-  /* Botones */
+  /* Segmented control */
+  .seg-control { display: flex; background: #1a1a1a; border-radius: 12px; padding: 3px; margin-bottom: 14px; }
+  .seg-btn { flex: 1; background: none; border: none; color: #666; font-size: 13px; font-weight: 700; padding: 9px 4px; border-radius: 9px; cursor: pointer; transition: all 0.15s; }
+  .seg-btn.active { background: #2c2c2e; color: #fff; }
+
+  /* Buttons */
   .btn { width: 100%; padding: 16px; border-radius: 14px; border: none; font-size: 17px; font-weight: 600; cursor: pointer; margin-bottom: 10px; transition: opacity 0.15s; }
   .btn:active { opacity: 0.7; }
   .btn-primary { background: #007aff; color: #fff; }
@@ -449,24 +456,23 @@ HTML = """<!DOCTYPE html>
   .btn-gray    { background: #2c2c2e; color: #fff; }
   .btn-outline { background: transparent; color: #007aff; border: 2px solid #007aff; }
 
-  /* Stats */
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-  .stat { background: #1e1e1e; border-radius: 16px; padding: 16px; text-align: center; }
-  .stat-num { font-size: 32px; font-weight: 700; }
-  .stat-label { font-size: 12px; color: #888; margin-top: 4px; }
+  /* Cards */
+  .card { background: #1e1e1e; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+  .card-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .card-value { font-size: 16px; font-weight: 600; }
 
   /* Badge */
   .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 12px; }
-  .badge-stock    { background: #1a3a1a; color: #34c759; }
-  .badge-fallado  { background: #3a1a00; color: #ff9500; }
-  .badge-scanner  { background: #1a1a3a; color: #007aff; }
+  .badge-stock   { background: #1a3a1a; color: #34c759; }
+  .badge-fallado { background: #3a1a00; color: #ff9500; }
+  .badge-scanner { background: #1a1a3a; color: #007aff; }
 
   /* Info grid */
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
   .info-item { background: #1e1e1e; border-radius: 12px; padding: 12px; }
   .info-item.wide { grid-column: 1 / -1; }
 
-  /* Lista */
+  /* List items */
   .list-item { background: #1e1e1e; border-radius: 12px; padding: 14px; margin-bottom: 8px; cursor: pointer; }
   .list-item:active { opacity: 0.7; }
   .list-item-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
@@ -478,7 +484,7 @@ HTML = """<!DOCTYPE html>
   label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
 
   /* Toast */
-  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1e1e1e; border: 1px solid #333; color: #fff; padding: 14px 24px; border-radius: 16px; font-size: 15px; font-weight: 500; z-index: 999; opacity: 0; transition: opacity 0.3s; max-width: 90vw; text-align: center; }
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1e1e1e; border: 1px solid #333; color: #fff; padding: 14px 24px; border-radius: 16px; font-size: 15px; font-weight: 500; z-index: 999; opacity: 0; transition: opacity 0.3s; max-width: 90vw; text-align: center; pointer-events: none; }
   .toast.show { opacity: 1; }
   .toast.success { border-color: #34c759; }
   .toast.error { border-color: #ff3b30; }
@@ -488,12 +494,15 @@ HTML = """<!DOCTYPE html>
   .spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid #333; border-top-color: #007aff; border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* Error state */
+  .err-box { background: #200; border: 1px solid #ff3b30; border-radius: 12px; padding: 16px; color: #ff3b30; text-align: center; margin-bottom: 12px; font-size: 14px; }
+
   .divider { height: 1px; background: #2c2c2e; margin: 16px 0; }
   .section-title { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
   .imei-text { font-family: monospace; font-size: 13px; color: #888; }
 
   /* Cuentas sub-nav */
-  .cuentas-subnav { display: flex; background: #1a1a1a; border-radius: 12px; padding: 4px; margin-bottom: 20px; margin-top: 16px; }
+  .cuentas-subnav { display: flex; background: #1a1a1a; border-radius: 12px; padding: 4px; margin-bottom: 16px; }
   .subnav-btn { flex: 1; background: none; border: none; color: #666; font-size: 12px; font-weight: 700; padding: 10px 4px; border-radius: 9px; cursor: pointer; text-align: center; transition: all 0.15s; }
   .subnav-btn.active { background: #2c2c2e; color: #fff; }
 </style>
@@ -505,16 +514,19 @@ HTML = """<!DOCTYPE html>
 <!-- ═══════════ SECCIÑN STOCK ═══════════ -->
 <div id="section-stock">
 
-  <!-- HOME -->
-  <div class="screen active" id="screen-home">
+  <!-- HOME + LISTA (pantalla principal) -->
+  <div class="screen active" id="screen-stock-home">
     <div class="header"><h1>📱 TechCargo</h1></div>
-    <div class="stats">
-      <div class="stat"><div class="stat-num" id="stat-stock">—</div><div class="stat-label">En stock</div></div>
-      <div class="stat"><div class="stat-num" id="stat-fallados">—</div><div class="stat-label">Fallados</div></div>
+    <div class="stats-chips">
+      <span class="chip gray" id="chip-stock">⏳ cargando...</span>
+      <span class="chip gray" id="chip-fallados"></span>
     </div>
     <button class="btn btn-primary" onclick="startScan()">📷 Escanear IMEI</button>
-    <button class="btn btn-gray" onclick="showStockScreen('screen-stock')">📦 Ver stock</button>
-    <button class="btn btn-gray" onclick="showStockScreen('screen-fallados')">🔧 Ver fallados</button>
+    <div class="seg-control">
+      <button class="seg-btn active" id="seg-stock"    onclick="showList('stock')">📦 Stock</button>
+      <button class="seg-btn"        id="seg-fallados" onclick="showList('fallados')">🔧 Fallados</button>
+    </div>
+    <div id="main-list"><div class="loading"><div class="spinner"></div></div></div>
   </div>
 
   <!-- SCAN -->
@@ -584,24 +596,6 @@ HTML = """<!DOCTYPE html>
     <button class="btn btn-success" onclick="confirmarReparado()">✅ Listo — vuelve al stock</button>
   </div>
 
-  <!-- STOCK LIST -->
-  <div class="screen" id="screen-stock">
-    <div class="header">
-      <button class="back-btn" onclick="showStockScreen('screen-home')">←</button>
-      <h1>Stock disponible</h1>
-    </div>
-    <div id="stock-list"><div class="loading"><div class="spinner"></div></div></div>
-  </div>
-
-  <!-- FALLADOS LIST -->
-  <div class="screen" id="screen-fallados">
-    <div class="header">
-      <button class="back-btn" onclick="showStockScreen('screen-home')">←</button>
-      <h1>Equipos fallados</h1>
-    </div>
-    <div id="fallados-list"><div class="loading"><div class="spinner"></div></div></div>
-  </div>
-
 </div><!-- /section-stock -->
 
 
@@ -610,15 +604,20 @@ HTML = """<!DOCTYPE html>
 
   <!-- CUENTAS MAIN -->
   <div class="screen active" id="screen-cuentas-main">
+    <div class="header"><h1>💵 Cuentas</h1></div>
     <div class="cuentas-subnav">
-      <button class="subnav-btn active" id="snav-caja"      onclick="switchCuentasTab('caja')">💵 CAJA</button>
-      <button class="subnav-btn"        id="snav-cobranzas" onclick="switchCuentasTab('cobranzas')">📋 COBRANZAS</button>
-      <button class="subnav-btn"        id="snav-nuevo"     onclick="switchCuentasTab('nuevo')">➕ NUEVO</button>
+      <button class="subnav-btn active" id="snav-cobranzas" onclick="switchCuentasTab('cobranzas')">📋 Deudores</button>
+      <button class="subnav-btn"        id="snav-caja"      onclick="switchCuentasTab('caja')">💰 Registrar</button>
+      <button class="subnav-btn"        id="snav-nuevo"     onclick="switchCuentasTab('nuevo')">➕ Nuevo</button>
+    </div>
+
+    <!-- TAB COBRANZAS -->
+    <div id="cuentas-cobranzas" class="cuentas-tab">
+      <div id="cobranzas-list"><div class="loading"><div class="spinner"></div></div></div>
     </div>
 
     <!-- TAB CAJA -->
-    <div id="cuentas-caja" class="cuentas-tab">
-      <div class="section-title">Registrar movimiento</div>
+    <div id="cuentas-caja" class="cuentas-tab" style="display:none">
       <label>Cliente</label>
       <select id="caja-cliente"><option value="">— Seleccionar cliente —</option></select>
       <label>Tipo</label>
@@ -635,14 +634,8 @@ HTML = """<!DOCTYPE html>
       <button class="btn btn-success" onclick="confirmarMovimiento()">Registrar</button>
     </div>
 
-    <!-- TAB COBRANZAS -->
-    <div id="cuentas-cobranzas" class="cuentas-tab" style="display:none">
-      <div id="cobranzas-list"><div class="loading"><div class="spinner"></div></div></div>
-    </div>
-
     <!-- TAB NUEVO -->
     <div id="cuentas-nuevo" class="cuentas-tab" style="display:none">
-      <div class="section-title">Nuevo cliente</div>
       <label>Nombre</label>
       <input type="text" id="nuevo-nombre" placeholder="Nombre completo">
       <label>Responsable</label>
@@ -676,12 +669,14 @@ HTML = """<!DOCTYPE html>
 </div><!-- /section-cuentas -->
 
 <!-- ═══════════ SECCIÓN PEDIDOS ═══════════ -->
-<div id="section-pedidos" style="display:none; position:fixed; top:0; left:0; right:0; bottom:60px;">
-  <iframe id="pedidos-iframe"
-    src="https://script.google.com/macros/s/AKfycbwqGU4rRWIYR1SCcn028jnTWI8SqFZxOGKwUsSZYVftDRCKiIlcf1OvEHn11kOFyoFT/exec"
-    style="width:100%; height:100%; border:none; background:#0f0f0f;"
-    allow="camera">
-  </iframe>
+<div id="section-pedidos" style="display:none">
+  <div style="height:calc(100vh - 132px);margin:16px;border-radius:16px;overflow:hidden;">
+    <iframe id="pedidos-iframe"
+      src="https://script.google.com/macros/s/AKfycbwqGU4rRWIYR1SCcn028jnTWI8SqFZxOGKwUsSZYVftDRCKiIlcf1OvEHn11kOFyoFT/exec"
+      style="width:100%;height:100%;border:none;background:#0f0f0f;"
+      allow="camera">
+    </iframe>
+  </div>
 </div><!-- /section-pedidos -->
 
 
@@ -700,14 +695,19 @@ HTML = """<!DOCTYPE html>
 
 
 <script>
-// ─── Tab principal ────────────────────────────────────────────────────────
+// ─── Estado global ─────────────────────────────────────────────────────────
+var currentIMEI  = null;
+var currentInfo  = null;
+var currentList  = 'stock';
+var stockData    = null;
+var falladosData = null;
+var qrScanner    = null;
+
+// ─── Tab principal ──────────────────────────────────────────────────────────
 function switchTab(tab) {
-  const tabs = ['stock', 'cuentas', 'pedidos'];
-  tabs.forEach(t => {
-    const sec = document.getElementById('section-' + t);
-    const btn = document.getElementById('tab-' + t);
-    sec.style.display = (t === tab) ? '' : 'none';
-    btn.classList.toggle('active', t === tab);
+  ['stock','cuentas','pedidos'].forEach(function(t) {
+    document.getElementById('section-' + t).style.display = (t === tab) ? 'block' : 'none';
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
   });
   if (tab === 'cuentas') {
     loadClientesDropdown();
@@ -715,56 +715,18 @@ function switchTab(tab) {
   }
 }
 
-// ─── Navegación STOCK ─────────────────────────────────────────────────────
+// ─── Navegación STOCK ───────────────────────────────────────────────────────
 function showStockScreen(id) {
-  document.querySelectorAll('#section-stock .screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('#section-stock .screen').forEach(function(s) { s.classList.remove('active'); });
   document.getElementById(id).classList.add('active');
   window.scrollTo(0, 0);
-  if (id === 'screen-stock') loadStock();
-  if (id === 'screen-fallados') loadFallados();
-}
-
-// ─── Toast ────────────────────────────────────────────────────────────────
-function toast(msg, type='') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + type;
-  setTimeout(() => t.className = 'toast', 3000);
-}
-
-// ─── Escáner ──────────────────────────────────────────────────────────────
-let qrScanner = null;
-
-function startScan() {
-  showStockScreen('screen-scan');
-  const statusEl = document.getElementById('scan-status');
-  statusEl.textContent = 'Iniciando cámara...';
-  qrScanner = new Html5Qrcode("scanner-video", { verbose: false });
-  qrScanner.start(
-    { facingMode: "environment" },
-    { fps: 15, qrbox: { width: 280, height: 80 } },
-    (raw) => {
-      const imei = raw.replace(/\\D/g, '');
-      if (imei.length >= 14) { stopScan(); lookupIMEI(imei); }
-      else { const m = raw.match(/\\d{14,15}/); if (m) { stopScan(); lookupIMEI(m[0]); } }
-    },
-    () => {}
-  ).then(() => {
-    statusEl.textContent = 'Apuntá al código de barras del IMEI';
-  }).catch(e => {
-    statusEl.textContent = '❌ Sin acceso a la cámara: ' + e;
-  });
-}
-
-function stopScan() {
-  if (qrScanner) { qrScanner.stop().catch(() => {}); qrScanner.clear(); qrScanner = null; }
 }
 
 function volverHome() {
   stopScan();
-  const inp = document.getElementById('imei-manual');
+  var inp = document.getElementById('imei-manual');
   if (inp) inp.value = '';
-  showStockScreen('screen-home');
+  showStockScreen('screen-stock-home');
 }
 
 function volverAResultado() {
@@ -772,182 +734,245 @@ function volverAResultado() {
   else volverHome();
 }
 
+// ─── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg, type) {
+  type = type || '';
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(function() { t.className = 'toast'; }, 3000);
+}
+
+// ─── Stats + lista ──────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    var rs = await fetch('/api/stock');
+    var rf = await fetch('/api/fallados');
+    if (!rs.ok) throw new Error('HTTP ' + rs.status);
+    var s = await rs.json();
+    var f = await rf.json();
+    if (!Array.isArray(s)) throw new Error('respuesta inesperada');
+    stockData    = s;
+    falladosData = f;
+    var nStock = s.filter(function(x) { return x.imei; }).length;
+    var nFall  = f.filter(function(x) { return x.estado === 'EN REPARACIÓN'; }).length;
+    var cs = document.getElementById('chip-stock');
+    var cf = document.getElementById('chip-fallados');
+    cs.textContent = '📦 ' + nStock + ' en stock';
+    cs.className = 'chip green';
+    cf.textContent = '🔧 ' + nFall + ' fallados';
+    cf.className = 'chip orange';
+    renderList(currentList);
+  } catch(e) {
+    document.getElementById('chip-stock').textContent = '⚠️ Error al cargar';
+    document.getElementById('chip-stock').className = 'chip';
+    document.getElementById('chip-fallados').textContent = '';
+    document.getElementById('main-list').innerHTML =
+      '<div class="err-box">No se pudo cargar el stock.<br><small>' + e.message + '</small><br><br>' +
+      '<button class="btn btn-gray" onclick="loadStats()" style="margin-top:8px;width:auto;padding:10px 20px;font-size:14px">Reintentar</button></div>';
+  }
+}
+
+function showList(which) {
+  currentList = which;
+  document.getElementById('seg-stock').classList.toggle('active', which === 'stock');
+  document.getElementById('seg-fallados').classList.toggle('active', which === 'fallados');
+  if (which === 'stock' && stockData) { renderList('stock'); return; }
+  if (which === 'fallados' && falladosData) { renderList('fallados'); return; }
+  loadStats();
+}
+
+function renderList(which) {
+  var el = document.getElementById('main-list');
+  if (which === 'stock') {
+    var items = stockData || [];
+    if (!items.length) { el.innerHTML = '<div class="loading" style="color:#888">Sin stock disponible</div>'; return; }
+    var grupos = {};
+    items.forEach(function(i) { if (!grupos[i.modelo]) grupos[i.modelo] = []; grupos[i.modelo].push(i); });
+    var html = '';
+    Object.keys(grupos).forEach(function(modelo) {
+      var equipos = grupos[modelo];
+      html += '<div class="section-title" style="margin-top:16px">' + modelo + ' <span style="color:#007aff">(' + equipos.length + ')</span></div>';
+      equipos.forEach(function(eq) {
+        html += '<div class="list-item" onclick="lookupIMEI(\'' + esc(eq.imei) + '\')">' +
+          '<div class="list-item-title">' + (eq.color||'Sin color') + (eq.precio?' · $'+eq.precio:'') + '</div>' +
+          '<div class="list-item-sub">' + (eq.imei?'IMEI: '+eq.imei:'Sin IMEI') + (eq.bateria?' · '+eq.bateria+'%':'') + '</div>' +
+          '</div>';
+      });
+    });
+    el.innerHTML = html;
+  } else {
+    var items = falladosData || [];
+    if (!items.length) { el.innerHTML = '<div class="loading" style="color:#888">Sin equipos fallados</div>'; return; }
+    var html = '';
+    var estadoColor = {'EN REPARACIÓN':'#ff9500','REPARADO':'#34c759','VENDIDO ROTO':'#888'};
+    items.forEach(function(eq) {
+      var color = estadoColor[eq.estado] || '#fff';
+      html += '<div class="list-item" onclick="lookupIMEI(\'' + esc(eq.imei) + '\')">' +
+        '<div class="list-item-title">' + eq.modelo + ' <span style="color:' + color + ';float:right;font-size:12px">' + eq.estado + '</span></div>' +
+        '<div class="list-item-sub">' + (eq.cliente||'Sin cliente') + ' · ' + (eq.falla||'Sin descripción') + '</div>' +
+        '<div class="list-item-sub" style="margin-top:4px">Reingreso: ' + (eq.fecha_reingreso||'—') + '</div>' +
+        '</div>';
+    });
+    el.innerHTML = html;
+  }
+}
+
+// ─── Escáner ────────────────────────────────────────────────────────────────
+function startScan() {
+  showStockScreen('screen-scan');
+  var statusEl = document.getElementById('scan-status');
+  statusEl.textContent = 'Iniciando cámara...';
+  if (window._qrFailed || typeof Html5Qrcode === 'undefined') {
+    statusEl.textContent = '❌ Librería de escáner no disponible. Usá el campo manual.';
+    return;
+  }
+  qrScanner = new Html5Qrcode("scanner-video", { verbose: false });
+  qrScanner.start(
+    { facingMode: "environment" },
+    { fps: 15, qrbox: { width: 280, height: 80 } },
+    function(raw) {
+      var imei = raw.replace(/\\D/g, '');
+      if (imei.length >= 14) { stopScan(); lookupIMEI(imei); }
+      else { var m = raw.match(/\\d{14,15}/); if (m) { stopScan(); lookupIMEI(m[0]); } }
+    },
+    function() {}
+  ).then(function() {
+    statusEl.textContent = 'Apuntá al código de barras del IMEI';
+  }).catch(function(e) {
+    statusEl.textContent = '❌ Sin acceso a la cámara: ' + e;
+  });
+}
+
+function stopScan() {
+  if (qrScanner) { qrScanner.stop().catch(function(){}); qrScanner.clear(); qrScanner = null; }
+}
+
 function lookupManual() {
-  const imei = document.getElementById('imei-manual').value.trim();
+  var imei = document.getElementById('imei-manual').value.trim();
   if (imei.length < 14) { toast('IMEI debe tener al menos 14 dígitos', 'error'); return; }
   stopScan();
   document.getElementById('imei-manual').value = '';
   lookupIMEI(imei);
 }
 
-let currentIMEI = null;
-let currentInfo = null;
-
 async function lookupIMEI(imei) {
   showStockScreen('screen-result');
   document.getElementById('result-content').innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px;color:#888">Buscando...</p></div>';
   currentIMEI = imei;
   try {
-    const r = await fetch('/api/lookup?imei=' + encodeURIComponent(imei));
+    var r = await fetch('/api/lookup?imei=' + encodeURIComponent(imei));
     currentInfo = await r.json();
     renderResult(currentInfo);
   } catch(e) {
-    document.getElementById('result-content').innerHTML = '<div class="loading" style="color:#ff3b30">Error de conexión</div>';
+    document.getElementById('result-content').innerHTML = '<div class="err-box">Error de conexión<br><small>' + e.message + '</small></div>';
   }
 }
 
 function renderResult(d) {
-  let html = '';
   if (!d.found) {
-    html = `<div style="text-align:center;padding:40px 0"><div style="font-size:48px">🔍</div><div style="font-size:18px;margin:12px 0">IMEI no encontrado</div><div class="imei-text">${d.imei}</div></div>`;
-    document.getElementById('result-content').innerHTML = html;
+    document.getElementById('result-content').innerHTML =
+      '<div style="text-align:center;padding:40px 0"><div style="font-size:48px">🔍</div>' +
+      '<div style="font-size:18px;margin:12px 0">IMEI no encontrado</div>' +
+      '<div class="imei-text">' + d.imei + '</div></div>';
     return;
   }
-  const badges = { STOCK:'badge-stock', FALLADOS:'badge-fallado', SCANNER:'badge-scanner' };
-  const labels  = { STOCK:'✅ En stock', FALLADOS:'⚠️ Fallado', SCANNER:'📋 Historial' };
-  html += `<span class="badge ${badges[d.fuente]}">${labels[d.fuente]}</span><div class="info-grid">`;
-  html += `<div class="info-item wide"><div class="card-label">Modelo</div><div class="card-value">${d.modelo||'||'—'}|/div></div>`;
-  if (d.color)              html += `<div class="info-item"><div class="card-label">Color</div><div class="card-value">${d.color}</div></div>`;
-  if (d.precio)             html += `<div class="info-item"><div class="card-label">Precio</div><div class="card-value">${d.precio}</div></div>`;
-  if (d.bateria)            html += `<div class="info-item"><div class="card-label">Batería</div><div class="card-value">${d.bateria}%</div></div>`;
-  if (d.fecha_ingreso)      html += `<div class="info-item"><div class="card-label">Ingreso</div><div class="card-value">${d.fecha_ingreso}</div></div>`;
-  if (d.fecha_egreso)       html += `<div class="info-item"><div class="card-label">Egreso</div><div class="card-value">${d.fecha_egreso}</div></div>`;
-  if (d.cliente)            html += `<div class="info-item"><div class="card-label">Cliente</div><div class="card-value">${d.cliente}</div></div>`;
-  if (d.estado)             html += `<div class="info-item"><div class="card-label">Estado</div><div class="card-value">${d.estado}</div></div>`;
-  if (d.falla)              html += `<div class="info-item wide"><div class="card-label">Falla</div><div class="card-value">${d.falla}</div></div>`;
-  if (d.fecha_venta)        html += `<div class="info-item"><div class="card-label">Venta</div><div class="card-value">${d.fecha_venta}</div></div>`;
-  if (d.fecha_reingreso)    html += `<div class="info-item"><div class="card-label">Reingreso</div><div class="card-value">${d.fecha_reingreso}</div></div>`;
-  if (d.fecha_salida_taller)html += `<div class="info-item"><div class="card-label">Salida taller</div><div class="card-value">${d.fecha_salida_taller}</div></div>`;
-  html += `<div class="info-item wide"><div class="card-label">IMEI</div><div class="card-value imei-text">${d.imei}</div></div></div>`;
+  var badges = { STOCK:'badge-stock', FALLADOS:'badge-fallado', SCANNER:'badge-scanner' };
+  var labels  = { STOCK:'✅ En stock', FALLADOS:'⚠️ Fallado', SCANNER:'📋 Historial' };
+  var html = '<span class="badge ' + badges[d.fuente] + '">' + labels[d.fuente] + '</span><div class="info-grid">';
+  html += '<div class="info-item wide"><div class="card-label">Modelo</div><div class="card-value">' + (d.modelo||'—') + '</div></div>';
+  if (d.color)               html += '<div class="info-item"><div class="card-label">Color</div><div class="card-value">' + d.color + '</div></div>';
+  if (d.precio)              html += '<div class="info-item"><div class="card-label">Precio</div><div class="card-value">' + d.precio + '</div></div>';
+  if (d.bateria)             html += '<div class="info-item"><div class="card-label">Batería</div><div class="card-value">' + d.bateria + '%</div></div>';
+  if (d.fecha_ingreso)       html += '<div class="info-item"><div class="card-label">Ingreso</div><div class="card-value">' + d.fecha_ingreso + '</div></div>';
+  if (d.fecha_egreso)        html += '<div class="info-item"><div class="card-label">Egreso</div><div class="card-value">' + d.fecha_egreso + '</div></div>';
+  if (d.cliente)             html += '<div class="info-item"><div class="card-label">Cliente</div><div class="card-value">' + d.cliente + '</div></div>';
+  if (d.estado)              html += '<div class="info-item"><div class="card-label">Estado</div><div class="card-value">' + d.estado + '</div></div>';
+  if (d.falla)               html += '<div class="info-item wide"><div class="card-label">Falla</div><div class="card-value">' + d.falla + '</div></div>';
+  if (d.fecha_venta)         html += '<div class="info-item"><div class="card-label">Venta</div><div class="card-value">' + d.fecha_venta + '</div></div>';
+  if (d.fecha_reingreso)     html += '<div class="info-item"><div class="card-label">Reingreso</div><div class="card-value">' + d.fecha_reingreso + '</div></div>';
+  if (d.fecha_salida_taller) html += '<div class="info-item"><div class="card-label">Salida taller</div><div class="card-value">' + d.fecha_salida_taller + '</div></div>';
+  html += '<div class="info-item wide"><div class="card-label">IMEI</div><div class="card-value imei-text">' + d.imei + '</div></div></div>';
   html += '<div class="divider"></div><div class="section-title">Acciones</div>';
   if (d.fuente === 'STOCK' && !d.fecha_egreso) {
-    html += `<button class="btn btn-success" onclick="irAVender()">💰 Marcar vendido</button>`;
-    html += `<button class="btn btn-warning" onclick="irAFallado()">⚠️ Registrar fallado</button>`;
+    html += '<button class="btn btn-success" onclick="irAVender()">💰 Marcar vendido</button>';
+    html += '<button class="btn btn-warning" onclick="irAFallado()">⚠️ Registrar fallado</button>';
   } else if (d.fuente === 'FALLADOS') {
-    const estado = (d.estado||'').toUpperCase();
+    var estado = (d.estado||'').toUpperCase();
     if (estado === 'EN REPARACIÓN') {
-      html += `<button class="btn btn-success" onclick="irAReparado()">✅ Marcar reparado</button>`;
-      html += `<button class="btn btn-danger" onclick="confirmarVendidoRoto()">💀 Vendido roto</button>`;
+      html += '<button class="btn btn-success" onclick="irAReparado()">✅ Marcar reparado</button>';
+      html += '<button class="btn btn-danger" onclick="confirmarVendidoRoto()">💀 Vendido roto</button>';
     } else if (estado === 'REPARADO') {
-      html += `<div class="card" style="color:#34c759;text-align:center">Reparado — pendiente de sync</div>`;
+      html += '<div class="card" style="color:#34c759;text-align:center">Reparado — pendiente de sync</div>';
     }
   } else if (d.fuente === 'SCANNER' && d.fecha_egreso && !d.fecha_reingreso) {
-    html += `<button class="btn btn-warning" onclick="irAFallado()">⚠️ Registrar como fallado</button>`;
+    html += '<button class="btn btn-warning" onclick="irAFallado()">⚠️ Registrar como fallado</button>';
   }
   document.getElementById('result-content').innerHTML = html;
 }
 
 function irAVender() {
-  document.getElementById('vender-modelo-card').innerHTML = `<div class="card-label">Equipo</div><div class="card-value">${currentInfo.modelo}</div>`;
+  document.getElementById('vender-modelo-card').innerHTML = '<div class="card-label">Equipo</div><div class="card-value">' + currentInfo.modelo + '</div>';
   document.getElementById('vender-fecha').value = new Date().toISOString().split('T')[0];
   document.getElementById('vender-cliente').value = '';
   showStockScreen('screen-vender');
 }
 async function confirmarVenta() {
-  const cliente = document.getElementById('vender-cliente').value;
-  const fecha = document.getElementById('vender-fecha').value.split('-').reverse().join('/');
-  const r = await fetch('/api/sell', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({imei:currentIMEI,cliente,fecha}) });
-  const d = await r.json();
-  if (d.ok) { toast(d.mensaje,'success'); showStockScreen('screen-home'); loadStats(); }
+  var cliente = document.getElementById('vender-cliente').value;
+  var fecha   = document.getElementById('vender-fecha').value.split('-').reverse().join('/');
+  var r = await fetch('/api/sell', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({imei:currentIMEI,cliente:cliente,fecha:fecha}) });
+  var d = await r.json();
+  if (d.ok) { toast(d.mensaje,'success'); volverHome(); stockData=null; loadStats(); }
   else toast(d.error,'error');
 }
 
 function irAFallado() {
-  document.getElementById('fallado-modelo-card').innerHTML = `<div class="card-label">Equipo</div><div class="card-value">${currentInfo.modelo||currentIMEI}</div>`;
+  document.getElementById('fallado-modelo-card').innerHTML = '<div class="card-label">Equipo</div><div class="card-value">' + (currentInfo.modelo||currentIMEI) + '</div>';
   document.getElementById('fallado-fecha').value = new Date().toISOString().split('T')[0];
   document.getElementById('fallado-falla').value = '';
   showStockScreen('screen-fallado');
 }
 async function confirmarFallado() {
-  const falla = document.getElementById('fallado-falla').value;
-  const fecha = document.getElementById('fallado-fecha').value.split('-').reverse().join('/');
-  const r = await fetch('/api/failed', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({imei:currentIMEI,falla,fecha_reingreso:fecha}) });
-  const d = await r.json();
-  if (d.ok) { toast(d.mensaje,'success'); showStockScreen('screen-home'); loadStats(); }
+  var falla = document.getElementById('fallado-falla').value;
+  var fecha = document.getElementById('fallado-fecha').value.split('-').reverse().join('/');
+  var r = await fetch('/api/failed', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({imei:currentIMEI,falla:falla,fecha_reingreso:fecha}) });
+  var d = await r.json();
+  if (d.ok) { toast(d.mensaje,'success'); volverHome(); stockData=null; falladosData=null; loadStats(); }
   else toast(d.error,'error');
 }
 
 function irAReparado() {
-  document.getElementById('reparado-modelo-card').innerHTML = `<div class="card-label">Equipo</div><div class="card-value">${currentInfo.modelo}</div>`;
+  document.getElementById('reparado-modelo-card').innerHTML = '<div class="card-label">Equipo</div><div class="card-value">' + currentInfo.modelo + '</div>';
   document.getElementById('reparado-fecha').value = new Date().toISOString().split('T')[0];
   showStockScreen('screen-reparado');
 }
 async function confirmarReparado() {
-  const fecha = document.getElementById('reparado-fecha').value.split('-').reverse().join('/');
-  const r = await fetch('/api/repaired', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({imei:currentIMEI,fecha_salida:fecha}) });
-  const d = await r.json();
-  if (d.ok) { toast(d.mensaje,'success'); showStockScreen('screen-home'); loadStats(); }
+  var fecha = document.getElementById('reparado-fecha').value.split('-').reverse().join('/');
+  var r = await fetch('/api/repaired', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({imei:currentIMEI,fecha_salida:fecha}) });
+  var d = await r.json();
+  if (d.ok) { toast(d.mensaje,'success'); volverHome(); stockData=null; falladosData=null; loadStats(); }
   else toast(d.error,'error');
 }
 
 async function confirmarVendidoRoto() {
   if (!confirm('¿Confirmar vendido roto?')) return;
-  const r = await fetch('/api/vendido-roto', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({imei:currentIMEI}) });
-  const d = await r.json();
-  if (d.ok) { toast(d.mensaje,'success'); showStockScreen('screen-home'); loadStats(); }
+  var r = await fetch('/api/vendido-roto', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({imei:currentIMEI}) });
+  var d = await r.json();
+  if (d.ok) { toast(d.mensaje,'success'); volverHome(); falladosData=null; loadStats(); }
   else toast(d.error,'error');
 }
 
-async function loadStock() {
-  const r = await fetch('/api/stock');
-  const items = await r.json();
-  const el = document.getElementById('stock-list');
-  if (!items.length) { el.innerHTML = '<div class="loading" style="color:#888">Sin stock disponible</div>'; return; }
-  const grupos = {};
-  items.forEach(i => { if (!grupos[i.mod]) grupos[i.modelo]=[]; grupos[i.modelo].push(i); });
-  let html = '';
-  Object.entries(grupos).forEach(([modelo, equipos]) => {
-    html += `<div class="section-title" style="margin-top:16px">${modelo} <span style="color:#007aff">(${equipos.length})</span></div>`;
-    equipos.forEach(eq => {
-      html += `<div class="list-item" onclick="if('${eq.imei}') lookupIMEI('${eq.imei}')">
-        <div class="list-item-title">${eq.color||'Sin color'} ${eq.precio?'· $'+eq.precio:''}</div>
-        <div class="list-item-sub">${eq.imei?'IMEI: '+eq.imei:'Sin IMEI'}</div>
-      </div>`;
-    });
-  });
-  el.innerHTML = html;
-}
-
-async function loadFallados() {
-  const r = await fetch('/api/fallados');
-  const items = await r.json();
-  const el = document.getElementById('fallados-list');
-  if (!items.length) { el.innerHTML = '<div class="loading" style="color:#888">Sin equipos fallados</div>'; return; }
-  const estadoColor = {'EN REPARACIÓN':'#ff9500','REPARADO':'#34c759','VENDIDO ROTO':'#888'};
-  let html = '';
-  items.forEach(eq => {
-    const color = estadoColor[eq.estado]||'#fff';
-    html += `<div class="list-item" onclick="lookupIMEI('${eq.imei}')">
-      <div class="list-item-title">${eq.modelo} <span style="color:${color};float:right;font-size:12px">${eq.estado}</span></div>
-      <div class="list-item-sub">${eq.cliente||'Sin cliente'} · ${eq.falla||'Sin descripción'}</div>
-      <div class="list-item-sub" style="margin-top:4px">Reingreso: ${eq.fecha_reingreso||'—'}</div>
-    </div>`;
-  });
-  el.innerHTML = html;
-}
-
-async function loadStats() {
-  try {
-    const [s,f] = await Promise.all([fetch('/api/stock'),fetch('/api/fallados')]);
-    const stock = await s.json(); const fallados = await f.json();
-    document.getElementById('stat-stock').textContent = stock.filter(x=>x.imei).length;
-    document.getElementById('stat-fallados').textContent = fallados.filter(x=>x.estado==='EN REPARACIÓN').length;
-  } catch(e) {}
-}
-loadStats();
-
-
-// ─── CUENTAS ──────────────────────────────────────────────────────────────
+// ─── CUENTAS ────────────────────────────────────────────────────────────────
 function showCuentasScreen(id) {
-  document.querySelectorAll('#section-cuentas .screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('#section-cuentas .screen').forEach(function(s) { s.classList.remove('active'); });
   document.getElementById(id).classList.add('active');
   window.scrollTo(0, 0);
 }
 
 function switchCuentasTab(tab) {
-  document.querySelectorAll('.cuentas-tab').forEach(t => t.style.display = 'none');
-  document.querySelectorAll('.subnav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('cuentas-' + tab).style.display = '';
+  document.querySelectorAll('.cuentas-tab').forEach(function(t) { t.style.display = 'none'; });
+  document.querySelectorAll('.subnav-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('cuentas-' + tab).style.display = 'block';
   document.getElementById('snav-' + tab).classList.add('active');
   if (tab === 'cobranzas') loadCobranzas();
   if (tab === 'caja') loadClientesDropdown();
@@ -955,32 +980,27 @@ function switchCuentasTab(tab) {
 
 async function loadClientesDropdown() {
   try {
-    const r = await fetch('/api/clientes');
-    const clientes = await r.json();
-    const sel = document.getElementById('caja-cliente');
-    const curr = sel.value;
+    var r = await fetch('/api/clientes');
+    var clientes = await r.json();
+    var sel = document.getElementById('caja-cliente');
+    var curr = sel.value;
     sel.innerHTML = '<option value="">— Seleccionar cliente —</option>';
-    clientes.forEach(c => {
-      sel.innerHTML += `<option value="${c.id}"${c.id===curr?' selected':''}>${c.nombre}</option>`;
+    clientes.forEach(function(c) {
+      sel.innerHTML += '<option value="' + c.id + '"' + (c.id===curr?' selected':'') + '>' + c.nombre + '</option>';
     });
   } catch(e) {}
 }
 
 async function confirmarMovimiento() {
-  const cliente_id = document.getElementById('caja-cliente').value;
-  const tipo       = document.getElementById('caja-tipo').value;
-  const monto      = parseFloat(document.getElementById('caja-monto').value);
-  const concepto   = document.getElementById('caja-concepto').value.trim();
-  const notas      = document.getElementById('caja-notas').value.trim();
-
+  var cliente_id = document.getElementById('caja-cliente').value;
+  var tipo       = document.getElementById('caja-tipo').value;
+  var monto      = parseFloat(document.getElementById('caja-monto').value);
+  var concepto   = document.getElementById('caja-concepto').value.trim();
+  var notas      = document.getElementById('caja-notas').value.trim();
   if (!cliente_id) { toast('Seleccioná un cliente', 'error'); return; }
   if (!monto || monto <= 0) { toast('Ingresá un monto válido', 'error'); return; }
-
-  const r = await fetch('/api/movimiento', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({cliente_id, tipo, monto, concepto, notas})
-  });
-  const d = await r.json();
+  var r = await fetch('/api/movimiento', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cliente_id:cliente_id, tipo:tipo, monto:monto, concepto:concepto, notas:notas}) });
+  var d = await r.json();
   if (d.ok) {
     toast(d.mensaje, 'success');
     document.getElementById('caja-monto').value = '';
@@ -991,81 +1011,70 @@ async function confirmarMovimiento() {
 }
 
 async function loadCobranzas() {
-  const el = document.getElementById('cobranzas-list');
+  var el = document.getElementById('cobranzas-list');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
-    const r = await fetch('/api/cobranzas');
-    const clientes = await r.json();
-    if (!clientes.length) { el.innerHTML = '<div class="loading" style="color:#888">Sin clientes</div>'; return; }
-
-    let html = '';
-    clientes.forEach(c => {
-      const saldo = c.saldo;
-      const dias  = c.dias;
-      let color = '#aaa', borderColor = '#2c2c2e', bg = '#1e1e1e';
+    var r = await fetch('/api/cobranzas');
+    var clientes = await r.json();
+    if (!Array.isArray(clientes) || !clientes.length) { el.innerHTML = '<div class="loading" style="color:#888">Sin clientes</div>'; return; }
+    var html = '';
+    clientes.forEach(function(c) {
+      var saldo = c.saldo, dias = c.dias;
+      var color = '#aaa', borderColor = '#2c2c2e', bg = '#1e1e1e';
       if (saldo > 0) {
         if (dias >= 30)     { color = '#ff3b30'; borderColor = '#ff3b30'; bg = '#1e1010'; }
         else if (dias >= 7) { color = '#ff9500'; borderColor = '#ff9500'; bg = '#1e1800'; }
         else                { color = '#fff';    borderColor = '#34c759'; }
       }
-      html += `<div class="list-item" style="background:${bg};border-left:3px solid ${borderColor}" onclick="verCliente('${c.id}','${escHtml(c.nombre)}')">
-        <div class="list-item-title" style="color:${color}">${c.nombre}<span style="float:right">$${saldo.toFixed(2)}</span></div>
-        <div class="list-item-sub">${c.responsable||''} · ${dias} días sin actividad</div>
-      </div>`;
+      html += '<div class="list-item" style="background:' + bg + ';border-left:3px solid ' + borderColor + '" onclick="verCliente(\'' + c.id + '\',\'' + esc(c.nombre) + '\')">' +
+        '<div class="list-item-title" style="color:' + color + '">' + c.nombre + '<span style="float:right">$' + saldo.toFixed(2) + '</span></div>' +
+        '<div class="list-item-sub">' + (c.responsable||'') + ' · ' + dias + ' días sin actividad</div>' +
+        '</div>';
     });
     el.innerHTML = html;
-  } catch(e) { el.innerHTML = '<div class="loading" style="color:#ff3b30">Error de conexión</div>'; }
+  } catch(e) { el.innerHTML = '<div class="err-box">Error de conexión</div>'; }
 }
 
 async function verCliente(id, nombre) {
   document.getElementById('cliente-nombre-header').textContent = nombre;
-  const el = document.getElementById('cliente-detail');
+  var el = document.getElementById('cliente-detail');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   showCuentasScreen('screen-cliente');
-
   try {
-    const r = await fetch('/api/cuenta?id=' + encodeURIComponent(id));
-    const d = await r.json();
-    const saldo = d.saldo;
-    const saldoColor = saldo > 0 ? '#ff3b30' : '#34c759';
-
-    let html = `<div class="card" style="text-align:center">
-      <div class="card-label">Saldo actual</div>
-      <div style="font-size:40px;font-weight:700;color:${saldoColor}">$${saldo.toFixed(2)}</div>
-    </div><div class="section-title" style="margin-top:16px">Movimientos</div>`;
-
+    var r = await fetch('/api/cuenta?id=' + encodeURIComponent(id));
+    var d = await r.json();
+    var saldo = d.saldo;
+    var saldoColor = saldo > 0 ? '#ff3b30' : '#34c759';
+    var html = '<div class="card" style="text-align:center"><div class="card-label">Saldo actual</div>' +
+      '<div style="font-size:40px;font-weight:700;color:' + saldoColor + '">$' + saldo.toFixed(2) + '</div></div>' +
+      '<div class="section-title" style="margin-top:16px">Movimientos</div>';
     if (!d.movimientos.length) {
       html += '<div style="color:#888;text-align:center;padding:20px">Sin movimientos</div>';
     } else {
-      [...d.movimientos].reverse().forEach(m => {
-        const isPago = m.tipo.includes('Pago');
-        const montoColor = isPago ? '#34c759' : '#ff3b30';
-        const signo = isPago ? '-' : '+';
-        html += `<div class="list-item">
-          <div class="list-item-title">${m.concepto||m.tipo}<span style="color:${montoColor};float:right">${signo}$${parseFloat(m.monto||0).toFixed(2)}</span></div>
-          <div class="list-item-sub">${m.fecha} · ${m.tipo}</div>
-          ${m.notas?`<div class="list-item-sub">${m.notas}</div>`:''}
-        </div>`;
+      d.movimientos.slice().reverse().forEach(function(m) {
+        var isPago = m.tipo.indexOf('Pago') >= 0;
+        var montoColor = isPago ? '#34c759' : '#ff3b30';
+        var signo = isPago ? '-' : '+';
+        html += '<div class="list-item">' +
+          '<div class="list-item-title">' + (m.concepto||m.tipo) + '<span style="color:' + montoColor + ';float:right">' + signo + '$' + parseFloat(m.monto||0).toFixed(2) + '</span></div>' +
+          '<div class="list-item-sub">' + m.fecha + ' · ' + m.tipo + '</div>' +
+          (m.notas ? '<div class="list-item-sub">' + m.notas + '</div>' : '') +
+          '</div>';
       });
     }
     el.innerHTML = html;
-  } catch(e) { el.innerHTML = '<div class="loading" style="color:#ff3b30">Error de conexión</div>'; }
+  } catch(e) { el.innerHTML = '<div class="err-box">Error de conexión</div>'; }
 }
 
 async function confirmarNuevoDeudor() {
-  const nombre      = document.getElementById('nuevo-nombre').value.trim();
-  const responsable = document.getElementById('nuevo-responsable').value;
-  const monto       = parseFloat(document.getElementById('nuevo-monto').value || 0);
-  const tipo        = document.getElementById('nuevo-tipo').value;
-  const concepto    = document.getElementById('nuevo-concepto').value.trim();
-
+  var nombre      = document.getElementById('nuevo-nombre').value.trim();
+  var responsable = document.getElementById('nuevo-responsable').value;
+  var monto       = parseFloat(document.getElementById('nuevo-monto').value || 0);
+  var tipo        = document.getElementById('nuevo-tipo').value;
+  var concepto    = document.getElementById('nuevo-concepto').value.trim();
   if (!nombre) { toast('Ingresá el nombre', 'error'); return; }
-
-  const r = await fetch('/api/nuevo-deudor', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({nombre, responsable, monto, tipo, concepto})
-  });
-  const d = await r.json();
+  var r = await fetch('/api/nuevo-deudor', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({nombre:nombre, responsable:responsable, monto:monto, tipo:tipo, concepto:concepto}) });
+  var d = await r.json();
   if (d.ok) {
     toast(d.mensaje, 'success');
     document.getElementById('nuevo-nombre').value = '';
@@ -1074,7 +1083,10 @@ async function confirmarNuevoDeudor() {
   } else toast(d.error||'Error', 'error');
 }
 
-function escHtml(s) { return s.replace(/'/g,"&#39;"); }
+function esc(s) { return String(s||'').replace(/'/g, "&#39;"); }
+
+// ─── Init ───────────────────────────────────────────────────────────────────
+loadStats();
 </script>
 </body>
 </html>"""
