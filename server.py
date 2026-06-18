@@ -794,7 +794,7 @@ function renderList(which) {
       var equipos = grupos[modelo];
       html += '<div class="section-title" style="margin-top:16px">' + modelo + ' <span style="color:#007aff">(' + equipos.length + ')</span></div>';
       equipos.forEach(function(eq) {
-        html += '<div class="list-item" onclick="lookupIMEI(\'' + esc(eq.imei) + '\')">' +
+        html += '<div class="list-item" onclick="lookupIMEI(\\'' + esc(eq.imei) + '\\')">' +
           '<div class="list-item-title">' + (eq.color||'Sin color') + (eq.precio?' · $'+eq.precio:'') + '</div>' +
           '<div class="list-item-sub">' + (eq.imei?'IMEI: '+eq.imei:'Sin IMEI') + (eq.bateria?' · '+eq.bateria+'%':'') + '</div>' +
           '</div>';
@@ -808,7 +808,7 @@ function renderList(which) {
     var estadoColor = {'EN REPARACIÓN':'#ff9500','REPARADO':'#34c759','VENDIDO ROTO':'#888'};
     items.forEach(function(eq) {
       var color = estadoColor[eq.estado] || '#fff';
-      html += '<div class="list-item" onclick="lookupIMEI(\'' + esc(eq.imei) + '\')">' +
+      html += '<div class="list-item" onclick="lookupIMEI(\\'' + esc(eq.imei) + '\\')">' +
         '<div class="list-item-title">' + eq.modelo + ' <span style="color:' + color + ';float:right;font-size:12px">' + eq.estado + '</span></div>' +
         '<div class="list-item-sub">' + (eq.cliente||'Sin cliente') + ' · ' + (eq.falla||'Sin descripción') + '</div>' +
         '<div class="list-item-sub" style="margin-top:4px">Reingreso: ' + (eq.fecha_reingreso||'—') + '</div>' +
@@ -1026,7 +1026,7 @@ async function loadCobranzas() {
         else if (dias >= 7) { color = '#ff9500'; borderColor = '#ff9500'; bg = '#1e1800'; }
         else                { color = '#fff';    borderColor = '#34c759'; }
       }
-      html += '<div class="list-item" style="background:' + bg + ';border-left:3px solid ' + borderColor + '" onclick="verCliente(\'' + c.id + '\',\'' + esc(c.nombre) + '\')">' +
+      html += '<div class="list-item" style="background:' + bg + ';border-left:3px solid ' + borderColor + '" onclick="verCliente(\\'' + c.id + '\\',\\'' + esc(c.nombre) + '\\')">' +
         '<div class="list-item-title" style="color:' + color + '">' + c.nombre + '<span style="float:right">$' + saldo.toFixed(2) + '</span></div>' +
         '<div class="list-item-sub">' + (c.responsable||'') + ' · ' + dias + ' días sin actividad</div>' +
         '</div>';
