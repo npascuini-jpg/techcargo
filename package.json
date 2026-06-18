@@ -1,0 +1,13 @@
+{
+  "name": "techcargo-wpp-bot",
+  "version": "2.0.0",
+  "description": "TechCargo WhatsApp Bot - cloud-ready",
+  "main": "wpp_bot.js",
+  "scripts": {
+    "start": "node wpp_bot.js"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "^1.26.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
