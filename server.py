@@ -47,7 +47,15 @@ def get_token():
         data = json.load(f)
     expiry_str = data.get("expiry", "")
     if expiry_str:
-        expiry = datetime.datetime.strptime(expiry_str, "%Y-%m-%dT%H:%M:%SZ")
+        # Handle both with and without microseconds/fractional seconds
+        for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ"):
+            try:
+                expiry = datetime.datetime.strptime(expiry_str, fmt)
+                break
+            except ValueError:
+                continue
+        else:
+            expiry = datetime.datetime.fromisoformat(expiry_str.rstrip("Z"))
         if datetime.datetime.utcnow() >= expiry - datetime.timedelta(minutes=5):
             data = refresh_token(data)
     return data["token"]
@@ -511,7 +519,7 @@ HTML = """<!DOCTYPE html>
 
 <div class="toast" id="toast"></div>
 
-<!-- ═══════════ SECCIÑN STOCK ═══════════ -->
+<!-- ═══════════ SECCIÓN STOCK ═══════════ -->
 <div id="section-stock">
 
   <!-- HOME + LISTA (pantalla principal) -->
@@ -1199,10 +1207,10 @@ if __name__ == "__main__":
     print(f"""
 ╔══════════════════════════════════════╗
 ║      TechCargo — Cloud Server        ║
-╠══════════════════════════════════════╣
+╠═════════════════════════════════════╣
 ║  Puerto: {PORT:<29}║
 ║  Data dir: {str(BASE_DIR):<27}║
 ╚══════════════════════════════════════╝
 """)
-    server = HTTPServer(("0.0.0.0", PORT), Handler)
+    server = HTTPServer(("0.0.0.0", ", PORT), Handler)
     server.serve_forever()
