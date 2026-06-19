@@ -11,7 +11,7 @@ Variables de entorno requeridas:
 
 import json, datetime, subprocess, sys, os, threading, time, ssl
 from pathlib import Path
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, unquote
 import urllib.request, urllib.parse
 
@@ -1576,5 +1576,5 @@ if __name__ == "__main__":
 ║  Data dir: {str(BASE_DIR):<27}║
 ╚══════════════════════════════════════╝
 """)
-    server = HTTPServer(("0.0.0.0", PORT), Handler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     server.serve_forever()
