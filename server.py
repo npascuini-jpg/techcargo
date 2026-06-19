@@ -1,4 +1,47 @@
-�─────────────────────────
+#!/usr/bin/env python3
+"""
+TechCargo — Servidor cloud-ready: Stock + Cuentas.
+Deploy en Railway, Render, o VPS con Docker.
+
+Variables de entorno requeridas:
+  GOOGLE_CREDENTIALS_JSON  → contenido completo de token.json (como string JSON)
+  PORT                     → puerto (Railway lo setea automático)
+  APP_DATA_DIR             → directorio de datos persistentes (default: /app/data)
+"""
+
+import json, datetime, subprocess, sys, os, threading, time, ssl
+from pathlib import Path
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs, unquote
+import urllib.request, urllib.parse
+
+# ─── Configuración cloud ──────────────────────────────────────────────────────
+
+BASE_DIR   = Path(os.environ.get("APP_DATA_DIR", Path(__file__).parent / "data"))
+TOKEN_FILE = BASE_DIR / "token.json"
+BASE_DIR.mkdir(parents=True, exist_ok=True)
+
+def _init_token():
+    """Inicializa token.json desde env var GOOGLE_CREDENTIALS_JSON si no existe."""
+    if not TOKEN_FILE.exists():
+        creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON", "")
+        if creds_json:
+            with open(TOKEN_FILE, "w") as f:
+                f.write(creds_json)
+            print("[Token] Inicializado desde GOOGLE_CREDENTIALS_JSON")
+        else:
+            print("[Token] ADVERTENCIA: No hay token.json ni GOOGLE_CREDENTIALS_JSON")
+
+_init_token()
+
+SPEC_ID        = "1MjTLP-7ZRqmaUa4uMkY3O7gXsMT8U9fnCk8fOhHUaVs"
+CAJA_ID        = "1KP58_1-qOWYYn4JM7F2kSYthRB9b7qHOraiyINy2P5g"
+SPEC_SHEET     = "ESPECIFICACIÓN STOCK - TECHCARGO"
+SHEET_DEUDORES = "DEUDORES"
+SHEET_MOV      = "MOVIMIENTOS"
+SHEET_PEDIDOS  = "PEDIDOS"
+
+# ─── Google Sheets helpers ───────────────────────────────────────────────────
 
 def get_token():
     with open(TOKEN_FILE) as f:
@@ -535,7 +578,7 @@ HTML = """<!DOCTYPE html>
 
 <div class="toast" id="toast"></div>
 
-<!-- ═══════════ SECCIÑN STOCK ═══════════ -->
+<!-- ═══════════ SECCIÓN STOCK ═══════════ -->
 <div id="section-stock">
 
   <!-- HOME + LISTA (pantalla principal) -->
@@ -842,7 +885,7 @@ function renderEquiposPedido() {
     total += p;
     html += '<div class="list-item" style="display:flex;justify-content:space-between;align-items:center">' +
       '<div><div class="list-item-title">' + e.modelo + '</div>' +
-      '<div class="list-item-sub">IMEI: ' + e.imei + (i.precio ? ' · $' + e.precio : '') + '</div></div>' +
+      '<div class="list-item-sub">IMEI: ' + e.imei + (e.precio ? ' · $' + e.precio : '') + '</div></div>' +
       '<button onclick="quitarEquipoPedido(\\'' + e.imei + '\\')" style="background:none;border:none;color:#ff3b30;font-size:20px;cursor:pointer;padding:4px 8px">×</button>' +
       '</div>';
   });
@@ -1137,19 +1180,6 @@ function renderResult(d) {
   html += '<div class="info-item wide"><div class="card-label">Modelo</div><div class="card-value">' + (d.modelo||'—') + '</div></div>';
   if (d.color)               html += '<div class="info-item"><div class="card-label">Color</div><div class="card-value">' + d.color + '</div></div>';
   if (d.precio)              html += '<div class="info-item"><div class="card-label">Precio</div><div class="card-value">' + d.precio + '</div></div>';
-  if (d.bateria)             html += '<div class="info-item"><div class="card-label">Batería</div><div class="card-value">' + d.bateria + '%</div></div>';
-  if (d.fecha_ingreso)       html += '<div class="info-item"><div class="card-label">Ingreso</div><div class="card-value">' + d.fecha_ingreso + '</div></div>';
-  if (d.fecha_egreso)        html += '<div class="info-item"><div class="card-label">Egreso</div><div class="card-value">' + d.fecha_egreso + '</div></div>';
-  if (d.cliente)             html += '<div class="info-item"><div class="card-label">Cliente</div><div class="card-value">' + d.cliente + '</div></div>';
-  if (d.estado)              html += '<div class="info-item"><div class="card-label">Estado</div><div class="card-value">' + d.estado + '</div></div>';
-  if (d.falla)               html += '<div class="info-item wide"><div class="card-label">Falla</div><div class="card-value">' + d.falla + '</div></div>';
-  if (d.fecha_venta)         html += '<div class="info-item"><div class="card-label">Venta</div><div class="card-value">' + d.fecha_venta + '</div></div>';
-  if (d.fecha_reingreso)     html += '<div class="info-item"><div class="card-label">Reingreso</div><div class="card-value">' + d.fecha_reingreso + '</div></div>';
-  if (d.fecha_salida_taller) html += '<div class="info-item"><div class="card-label">Salida taller</div><div class="card-value">' + d.fecha_salida_taller + '</div></div>';
-  html += '<div class="info-item wide"><div class="card-label">IMEI</div><div class="card-value imei-text">' + d.imei + '</div></div></div>';
-  html += '<div class="divider"></div><div class="section-title">Acciones</div>';
-  if (d.fuente === 'STOCK' && !d.fecha_egreso) {
-    html += '<button class="btn btn-success" onclick="irAVender()">�s="info-item"><div class="card-label">Precio</div><div class="card-value">' + d.precio + '</div></div>';
   if (d.bateria)             html += '<div class="info-item"><div class="card-label">Batería</div><div class="card-value">' + d.bateria + '%</div></div>';
   if (d.fecha_ingreso)       html += '<div class="info-item"><div class="card-label">Ingreso</div><div class="card-value">' + d.fecha_ingreso + '</div></div>';
   if (d.fecha_egreso)        html += '<div class="info-item"><div class="card-label">Egreso</div><div class="card-value">' + d.fecha_egreso + '</div></div>';
