@@ -789,13 +789,25 @@ HTML = """<!DOCTYPE html>
       <button class="btn-back" onclick="showPedidosScreen('screen-crear-pedido')">‹</button>
       <span class="top-title">Agregar equipo</span>
     </div>
-    <div style="padding:16px">
-      <div class="section-title">IMEI</div>
-      <div style="display:flex;gap:8px;margin-bottom:16px">
+    <div style="padding:16px;padding-bottom:80px">
+      <!-- Búsqueda por IMEI -->
+      <div class="section-title">Por IMEI</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
         <input id="pedido-imei-input" type="number" class="input-field" placeholder="Ingresá el IMEI" style="margin-bottom:0;flex:1">
         <button class="btn btn-gray" onclick="buscarEquipoPedido()" style="width:auto;padding:10px 16px;margin:0;font-size:14px">Buscar</button>
       </div>
-      <div id="pedido-scan-result"></div>
+      <div id="pedido-scan-result" style="margin-bottom:16px"></div>
+
+      <!-- Separador -->
+      <div style="display:flex;align-items:center;gap:10px;margin:16px 0">
+        <div style="flex:1;height:1px;background:#2c2c2e"></div>
+        <span style="color:#888;font-size:13px">o elegí del stock</span>
+        <div style="flex:1;height:1px;background:#2c2c2e"></div>
+      </div>
+
+      <!-- Buscador de stock -->
+      <input id="stock-picker-search" type="text" class="input-field" placeholder="🔍 Filtrar por modelo, color..." oninput="filtrarStockPicker()" style="margin-bottom:10px">
+      <div id="stock-picker-list"><div class="loading"><div class="spinner"></div></div></div>
     </div>
   </div>
 
@@ -838,10 +850,63 @@ var qrScanner    = null;
 // ─── Pedidos ─────────────────────────────────────────────────────────────────
 var pedidoEquipos = [];  // [{imei, modelo, precio}]
 
+var _stockPickerData = null;
+
 function showPedidosScreen(id) {
   document.querySelectorAll('#section-pedidos .screen').forEach(function(s) { s.classList.remove('active'); });
   document.getElementById(id).classList.add('active');
   window.scrollTo(0, 0);
+  if (id === 'screen-pedido-scan') loadStockParaPedido();
+}
+
+async function loadStockParaPedido() {
+  var el = document.getElementById('stock-picker-list');
+  if (!el) return;
+  if (_stockPickerData) { renderStockPicker(_stockPickerData); return; }
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    var r = await fetch('/api/stock');
+    var d = await r.json();
+    _stockPickerData = d.items || [];
+    renderStockPicker(_stockPickerData);
+  } catch(e) {
+    el.innerHTML = '<div class="err-box">Error cargando stock</div>';
+  }
+}
+
+function filtrarStockPicker() {
+  if (!_stockPickerData) return;
+  var q = (document.getElementById('stock-picker-search').value || '').toLowerCase();
+  var filtered = q ? _stockPickerData.filter(function(it) {
+    return (it.modelo||''). toLowerCase().includes(q) ||
+           (it.color||''). toLowerCase().includes(q) ||
+           (it.imei||''). includes(q);
+  }) : _stockPickerData;
+  renderStockPicker(filtered);
+}
+
+function renderStockPicker(items) {
+  var el = document.getElementById('stock-picker-list');
+  if (!el) return;
+  // Filter out already-added IMEIs
+  var added = pedidoEquipos.map(function(e) { return e.imei; });
+  var available = items.filter(function(it) { return !added.includes(it.imei); });
+  if (!available.length) {
+    el.innerHTML = '<div class="loading" style="color:#888">Sin equipos disponibles</div>';
+    return;
+  }
+  el.innerHTML = available.map(function(it) {
+    var nombre = (it.modelo||'Sin modelo') + (it.color ? ' · ' + it.color : '');
+    var precio = it.precio ? '$' + it.precio : '';
+    var bateria = it.bateria ? '🔋' + it.bateria + '%' : '';
+    return '<div class="list-item" onclick="agregarEquipoPedido(\'' + esc(it.imei) + '\',\'' + esc(it.modelo||'') + '\',\'' + esc(it.precio||'') + '\')" style="display:flex;align-items:center;gap:12px">' +
+      '<div style="flex:1">' +
+      '<div class="list-item-title">' + nombre + '</div>' +
+      '<div class="list-item-sub">' + [precio, bateria, 'IMEI: ' + it.imei].filter(Boolean).join(' · ') + '</div>' +
+      '</div>' +
+      '<div style="color:#34c759;font-size:22px;font-weight:700">+</div>' +
+      '</div>';
+  }).join('');
 }
 
 function irANuevoPedido() {
@@ -937,6 +1002,7 @@ async function confirmarPedido() {
     toast(d.mensaje, 'success');
     pedidoEquipos = [];
     stockData = null;
+    _stockPickerData = null;
     loadStats();
     showPedidosScreen('screen-pedidos-home');
     loadPedidos();
