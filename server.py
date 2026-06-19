@@ -39,7 +39,7 @@ CAJA_ID        = "1KP58_1-qOWYYn4JM7F2kSYthRB9b7qHOraiyINy2P5g"
 SPEC_SHEET     = "ESPECIFICACIÓN STOCK - TECHCARGO"
 SHEET_DEUDORES = "DEUDORES"
 SHEET_MOV      = "MOVIMIENTOS"
-SHEET_PEDIDOS  = "PEDIDOS"
+SHEET_PEDIDOS  = "ORDENES"
 
 # ─── Google Sheets helpers ───────────────────────────────────────────────────
 
