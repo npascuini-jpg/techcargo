@@ -1,46 +1,4 @@
-#!/usr/bin/env python3
-"""
-TechCargo — Servidor cloud-ready: Stock + Cuentas.
-Deploy en Railway, Render, o VPS con Docker.
-
-Variables de entorno requeridas:
-  GOOGLE_CREDENTIALS_JSON  → contenido completo de token.json (como string JSON)
-  PORT                     → puerto (Railway lo setea automático)
-  APP_DATA_DIR             → directorio de datos persistentes (default: /app/data)
-"""
-
-import json, datetime, subprocess, sys, os, threading, time, ssl
-from pathlib import Path
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs, unquote
-import urllib.request, urllib.parse
-
-# ─── Configuración cloud ──────────────────────────────────────────────────────
-
-BASE_DIR   = Path(os.environ.get("APP_DATA_DIR", Path(__file__).parent / "data"))
-TOKEN_FILE = BASE_DIR / "token.json"
-BASE_DIR.mkdir(parents=True, exist_ok=True)
-
-def _init_token():
-    """Inicializa token.json desde env var GOOGLE_CREDENTIALS_JSON si no existe."""
-    if not TOKEN_FILE.exists():
-        creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON", "")
-        if creds_json:
-            with open(TOKEN_FILE, "w") as f:
-                f.write(creds_json)
-            print("[Token] Inicializado desde GOOGLE_CREDENTIALS_JSON")
-        else:
-            print("[Token] ADVERTENCIA: No hay token.json ni GOOGLE_CREDENTIALS_JSON")
-
-_init_token()
-
-SPEC_ID        = "1MjTLP-7ZRqmaUa4uMkY3O7gXsMT8U9fnCk8fOhHUaVs"
-CAJA_ID        = "1KP58_1-qOWYYn4JM7F2kSYthRB9b7qHOraiyINy2P5g"
-SPEC_SHEET     = "ESPECIFICACIÓN STOCK - TECHCARGO"
-SHEET_DEUDORES = "DEUDORES"
-SHEET_MOV      = "MOVIMIENTOS"
-
-# ─── Google Sheets helpers ───────────────────────────────────────────────────
+�─────────────────────────
 
 def get_token():
     with open(TOKEN_FILE) as f:
@@ -234,6 +192,64 @@ def marcar_vendido_roto(imei):
     sheets_update(SPEC_ID, f"FALLADOS!H{info['row_num']}", [["VENDIDO ROTO"]])
     threading.Thread(target=run_sync, daemon=True).start()
     return {"ok": True, "mensaje": f"✅ {info.get('modelo',imei)} marcado como vendido roto"}
+
+def get_pedidos():
+    try:
+        rows = sheets_get(SPEC_ID, f"{SHEET_PEDIDOS}!A2:H")
+    except:
+        return []
+    result = []
+    for row in rows:
+        pid = get_val(row, 0)
+        if not pid:
+            continue
+        result.append({
+            "id":      pid,
+            "fecha":   get_val(row, 1),
+            "cliente": get_val(row, 2),
+            "imeis":   get_val(row, 3),
+            "modelos": get_val(row, 4),
+            "precios": get_val(row, 5),
+            "total":   get_val(row, 6),
+            "notas":   get_val(row, 7),
+        })
+    result.reverse()
+    return result
+
+def crear_pedido(cliente, equipos, notas, fecha):
+    """
+    equipos: lista de {imei, modelo, precio}
+    Guarda en hoja PEDIDOS y marca cada IMEI como vendido.
+    """
+    if not equipos:
+        return {"ok": False, "error": "El pedido no tiene equipos"}
+    if not cliente:
+        return {"ok": False, "error": "Ingresá el nombre del cliente"}
+
+    fecha_uso = fecha or hoy()
+    pid = "P" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
+    imeis   = ", ".join(e.get("imei","")   for e in equipos)
+    modelos = ", ".join(e.get("modelo","") for e in equipos)
+    precios = ", ".join(str(e.get("precio","")) for e in equipos)
+    try:
+        total = sum(float(str(e.get("precio","0")).replace("$","").replace(",",".") or 0) for e in equipos)
+    except:
+        total = 0
+
+    fila = [pid, fecha_uso, cliente, imeis, modelos, precios, str(round(total, 2)), notas]
+    sheets_append(SPEC_ID, f"{SHEET_PEDIDOS}!A2", [fila])
+
+    errores = []
+    for e in equipos:
+        res = marcar_vendido(e.get("imei",""), cliente, fecha_uso)
+        if not res.get("ok"):
+            errores.append(f"{e.get('imei','')}: {res.get('error','')}")
+
+    if errores:
+        return {"ok": False, "error": "Pedido guardado pero algunos equipos fallaron: " + "; ".join(errores)}
+
+    return {"ok": True, "mensaje": f"✅ Pedido {pid} creado — {len(equipos)} equipo(s) para {cliente}"}
 
 def get_stock():
     rows = sheets_get(SPEC_ID, f"{SPEC_SHEET}!A1:L")
@@ -519,7 +535,7 @@ HTML = """<!DOCTYPE html>
 
 <div class="toast" id="toast"></div>
 
-<!-- ═══════════ SECCIÓN STOCK ═══════════ -->
+<!-- ═══════════ SECCIÑN STOCK ═══════════ -->
 <div id="section-stock">
 
   <!-- HOME + LISTA (pantalla principal) -->
@@ -678,13 +694,77 @@ HTML = """<!DOCTYPE html>
 
 <!-- ═══════════ SECCIÓN PEDIDOS ═══════════ -->
 <div id="section-pedidos" style="display:none">
-  <div style="height:calc(100vh - 132px);margin:16px;border-radius:16px;overflow:hidden;">
-    <iframe id="pedidos-iframe"
-      src="https://script.google.com/macros/s/AKfycbwqGU4rRWIYR1SCcn028jnTWI8SqFZxOGKwUsSZYVftDRCKiIlcf1OvEHn11kOFyoFT/exec"
-      style="width:100%;height:100%;border:none;background:#0f0f0f;"
-      allow="camera">
-    </iframe>
+
+  <!-- Pantalla: lista de pedidos -->
+  <div id="screen-pedidos-home" class="screen active">
+    <div class="top-bar">
+      <span class="top-title">Pedidos</span>
+      <button class="btn-icon" onclick="irANuevoPedido()" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:#007aff;border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:600;padding:8px 14px;cursor:pointer">+ Nuevo</button>
+    </div>
+    <div style="padding:16px">
+      <div id="pedidos-list"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
   </div>
+
+  <!-- Pantalla: crear pedido -->
+  <div id="screen-crear-pedido" class="screen">
+    <div class="top-bar">
+      <button class="btn-back" onclick="showPedidosScreen('screen-pedidos-home');loadPedidos()">‹</button>
+      <span class="top-title">Nuevo pedido</span>
+    </div>
+    <div style="padding:16px;padding-bottom:100px">
+
+      <!-- Equipos del pedido -->
+      <div class="section-title">Equipos</div>
+      <div id="pedido-equipos-list" style="margin-bottom:12px"></div>
+      <button class="btn btn-gray" onclick="showPedidosScreen('screen-pedido-scan')" style="width:auto;padding:10px 20px;font-size:14px;margin-bottom:8px">+ Agregar equipo</button>
+
+      <div class="divider"></div>
+
+      <!-- Datos del pedido -->
+      <div class="section-title">Cliente</div>
+      <input id="pedido-cliente" type="text" class="input-field" placeholder="Nombre del cliente">
+
+      <div class="section-title" style="margin-top:12px">Fecha</div>
+      <input id="pedido-fecha" type="date" class="input-field">
+
+      <div class="section-title" style="margin-top:12px">Notas</div>
+      <input id="pedido-notas" type="text" class="input-field" placeholder="Opcional">
+
+      <div id="pedido-total-card" class="card" style="text-align:center;margin-top:16px;display:none">
+        <div class="card-label">Total estimado</div>
+        <div id="pedido-total-val" style="font-size:32px;font-weight:700;color:#34c759"></div>
+      </div>
+
+      <button class="btn btn-success" style="margin-top:16px" onclick="confirmarPedido()">✅ Confirmar pedido</button>
+    </div>
+  </div>
+
+  <!-- Pantalla: buscar equipo para agregar al pedido -->
+  <div id="screen-pedido-scan" class="screen">
+    <div class="top-bar">
+      <button class="btn-back" onclick="showPedidosScreen('screen-crear-pedido')">‹</button>
+      <span class="top-title">Agregar equipo</span>
+    </div>
+    <div style="padding:16px">
+      <div class="section-title">IMEI</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input id="pedido-imei-input" type="number" class="input-field" placeholder="Ingresá el IMEI" style="margin-bottom:0;flex:1">
+        <button class="btn btn-gray" onclick="buscarEquipoPedido()" style="width:auto;padding:10px 16px;margin:0;font-size:14px">Buscar</button>
+      </div>
+      <div id="pedido-scan-result"></div>
+    </div>
+  </div>
+
+  <!-- Pantalla: detalle de pedido existente -->
+  <div id="screen-pedido-detalle" class="screen">
+    <div class="top-bar">
+      <button class="btn-back" onclick="showPedidosScreen('screen-pedidos-home')">‹</button>
+      <span class="top-title">Detalle pedido</span>
+    </div>
+    <div id="pedido-detalle-content" style="padding:16px"></div>
+  </div>
+
 </div><!-- /section-pedidos -->
 
 
@@ -712,6 +792,169 @@ var falladosData = null;
 var qrScanner    = null;
 
 // ─── Tab principal ──────────────────────────────────────────────────────────
+// ─── Pedidos ─────────────────────────────────────────────────────────────────
+var pedidoEquipos = [];  // [{imei, modelo, precio}]
+
+function showPedidosScreen(id) {
+  document.querySelectorAll('#section-pedidos .screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function irANuevoPedido() {
+  pedidoEquipos = [];
+  document.getElementById('pedido-cliente').value = '';
+  document.getElementById('pedido-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('pedido-notas').value = '';
+  document.getElementById('pedido-imei-input').value = '';
+  document.getElementById('pedido-scan-result').innerHTML = '';
+  renderEquiposPedido();
+  showPedidosScreen('screen-crear-pedido');
+}
+
+function agregarEquipoPedido(imei, modelo, precio) {
+  if (pedidoEquipos.find(function(e) { return e.imei === imei; })) {
+    toast('El equipo ya está en el pedido', 'error'); return;
+  }
+  pedidoEquipos.push({ imei: imei, modelo: modelo, precio: precio });
+  renderEquiposPedido();
+  showPedidosScreen('screen-crear-pedido');
+}
+
+function quitarEquipoPedido(imei) {
+  pedidoEquipos = pedidoEquipos.filter(function(e) { return e.imei !== imei; });
+  renderEquiposPedido();
+}
+
+function renderEquiposPedido() {
+  var el = document.getElementById('pedido-equipos-list');
+  var totalEl = document.getElementById('pedido-total-card');
+  var totalVal = document.getElementById('pedido-total-val');
+  if (!pedidoEquipos.length) {
+    el.innerHTML = '<div style="color:#888;font-size:14px;margin-bottom:8px">Sin equipos agregados</div>';
+    totalEl.style.display = 'none';
+    return;
+  }
+  var total = 0;
+  var html = '';
+  pedidoEquipos.forEach(function(e) {
+    var p = parseFloat(String(e.precio||0).replace('$','').replace(',','.')) || 0;
+    total += p;
+    html += '<div class="list-item" style="display:flex;justify-content:space-between;align-items:center">' +
+      '<div><div class="list-item-title">' + e.modelo + '</div>' +
+      '<div class="list-item-sub">IMEI: ' + e.imei + (i.precio ? ' · $' + e.precio : '') + '</div></div>' +
+      '<button onclick="quitarEquipoPedido(\\'' + e.imei + '\\')" style="background:none;border:none;color:#ff3b30;font-size:20px;cursor:pointer;padding:4px 8px">×</button>' +
+      '</div>';
+  });
+  el.innerHTML = html;
+  totalEl.style.display = 'block';
+  totalVal.textContent = '$' + total.toFixed(2);
+}
+
+async function buscarEquipoPedido() {
+  var imei = document.getElementById('pedido-imei-input').value.trim();
+  if (imei.length < 14) { toast('IMEI debe tener al menos 14 dígitos', 'error'); return; }
+  var el = document.getElementById('pedido-scan-result');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    var r = await fetch('/api/lookup?imei=' + encodeURIComponent(imei));
+    var d = await r.json();
+    if (!d.found) {
+      el.innerHTML = '<div class="err-box">IMEI no encontrado en stock</div>';
+      return;
+    }
+    if (d.fuente !== 'STOCK' || d.fecha_egreso) {
+      el.innerHTML = '<div class="err-box">El equipo no está disponible en stock activo</div>';
+      return;
+    }
+    el.innerHTML = '<div class="card">' +
+      '<div class="card-label">Equipo</div>' +
+      '<div class="card-value">' + d.modelo + (d.color ? ' · ' + d.color : '') + '</div>' +
+      (d.precio ? '<div class="card-label" style="margin-top:8px">Precio</div><div class="card-value">$' + d.precio + '</div>' : '') +
+      '<button class="btn btn-success" style="margin-top:12px" onclick="agregarEquipoPedido(\\'' + esc(imei) + '\\',\\'' + esc(d.modelo) + '\\',\\'' + esc(d.precio||'') + '\\')">+ Agregar al pedido</button>' +
+      '</div>';
+  } catch(e) {
+    el.innerHTML = '<div class="err-box">Error de conexión</div>';
+  }
+}
+
+async function confirmarPedido() {
+  var cliente = document.getElementById('pedido-cliente').value.trim();
+  var fecha   = document.getElementById('pedido-fecha').value;
+  var notas   = document.getElementById('pedido-notas').value.trim();
+  if (!pedidoEquipos.length) { toast('Agregá al menos un equipo', 'error'); return; }
+  if (!cliente) { toast('Ingresá el nombre del cliente', 'error'); return; }
+  var r = await fetch('/api/crear-pedido', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ cliente: cliente, equipos: pedidoEquipos, notas: notas, fecha: fecha })
+  });
+  var d = await r.json();
+  if (d.ok) {
+    toast(d.mensaje, 'success');
+    pedidoEquipos = [];
+    stockData = null;
+    loadStats();
+    showPedidosScreen('screen-pedidos-home');
+    loadPedidos();
+  } else {
+    toast(d.error, 'error');
+  }
+}
+
+async function loadPedidos() {
+  var el = document.getElementById('pedidos-list');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    var r = await fetch('/api/pedidos');
+    var pedidos = await r.json();
+    if (!pedidos.length) {
+      el.innerHTML = '<div class="loading" style="color:#888">Sin pedidos registrados</div>';
+      return;
+    }
+    var html = '';
+    pedidos.forEach(function(p) {
+      var cant = p.imeis ? p.imeis.split(',').length : 0;
+      html += '<div class="list-item" onclick="verPedido(' + JSON.stringify(p).replace(/\'/g,"&#39;") + ')">' +
+        '<div class="list-item-title">' + p.cliente +
+        '<span style="float:right;color:#34c759">$' + (p.total||'0') + '</span></div>' +
+        '<div class="list-item-sub">' + p.fecha + ' · ' + cant + ' equipo(s)</div>' +
+        (p.notas ? '<div class="list-item-sub">' + p.notas + '</div>' : '') +
+        '</div>';
+    });
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div class="err-box">Error de conexión</div>';
+  }
+}
+
+function verPedido(p) {
+  var cant = p.imeis ? p.imeis.split(',').length : 0;
+  var modelos = (p.modelos||'').split(',');
+  var imeis   = (p.imeis||'').split(',');
+  var precios = (p.precios||'').split(',');
+  var html = '<div class="card" style="text-align:center"><div class="card-label">Total</div>' +
+    '<div style="font-size:36px;font-weight:700;color:#34c759">$' + (p.total||'0') + '</div></div>' +
+    '<div class="info-grid" style="margin-top:12px">' +
+    '<div class="info-item wide"><div class="card-label">Cliente</div><div class="card-value">' + p.cliente + '</div></div>' +
+    '<div class="info-item"><div class="card-label">Fecha</div><div class="card-value">' + p.fecha + '</div></div>' +
+    '<div class="info-item"><div class="card-label">Pedido</div><div class="card-value">' + p.id + '</div></div>' +
+    (p.notas ? '<div class="info-item wide"><div class="card-label">Notas</div><div class="card-value">' + p.notas + '</div></div>' : '') +
+    '</div>' +
+    '<div class="divider"></div><div class="section-title">Equipos (' + cant + ')</div>';
+  for (var i = 0; i < imeis.length; i++) {
+    var imei = (imeis[i]||'').trim();
+    var mod  = (modelos[i]||'').trim();
+    var prec = (precios[i]||'').trim();
+    if (!imei) continue;
+    html += '<div class="list-item"><div class="list-item-title">' + mod +
+      (prec ? '<span style="float:right">$' + prec + '</span>' : '') + '</div>' +
+      '<div class="list-item-sub">' + imei + '</div></div>';
+  }
+  document.getElementById('pedido-detalle-content').innerHTML = html;
+  showPedidosScreen('screen-pedido-detalle');
+}
+
 function switchTab(tab) {
   ['stock','cuentas','pedidos'].forEach(function(t) {
     document.getElementById('section-' + t).style.display = (t === tab) ? 'block' : 'none';
@@ -720,6 +963,9 @@ function switchTab(tab) {
   if (tab === 'cuentas') {
     loadClientesDropdown();
     if (document.getElementById('cuentas-cobranzas').style.display !== 'none') loadCobranzas();
+  }
+  if (tab === 'pedidos') {
+    loadPedidos();
   }
 }
 
@@ -903,6 +1149,19 @@ function renderResult(d) {
   html += '<div class="info-item wide"><div class="card-label">IMEI</div><div class="card-value imei-text">' + d.imei + '</div></div></div>';
   html += '<div class="divider"></div><div class="section-title">Acciones</div>';
   if (d.fuente === 'STOCK' && !d.fecha_egreso) {
+    html += '<button class="btn btn-success" onclick="irAVender()">�s="info-item"><div class="card-label">Precio</div><div class="card-value">' + d.precio + '</div></div>';
+  if (d.bateria)             html += '<div class="info-item"><div class="card-label">Batería</div><div class="card-value">' + d.bateria + '%</div></div>';
+  if (d.fecha_ingreso)       html += '<div class="info-item"><div class="card-label">Ingreso</div><div class="card-value">' + d.fecha_ingreso + '</div></div>';
+  if (d.fecha_egreso)        html += '<div class="info-item"><div class="card-label">Egreso</div><div class="card-value">' + d.fecha_egreso + '</div></div>';
+  if (d.cliente)             html += '<div class="info-item"><div class="card-label">Cliente</div><div class="card-value">' + d.cliente + '</div></div>';
+  if (d.estado)              html += '<div class="info-item"><div class="card-label">Estado</div><div class="card-value">' + d.estado + '</div></div>';
+  if (d.falla)               html += '<div class="info-item wide"><div class="card-label">Falla</div><div class="card-value">' + d.falla + '</div></div>';
+  if (d.fecha_venta)         html += '<div class="info-item"><div class="card-label">Venta</div><div class="card-value">' + d.fecha_venta + '</div></div>';
+  if (d.fecha_reingreso)     html += '<div class="info-item"><div class="card-label">Reingreso</div><div class="card-value">' + d.fecha_reingreso + '</div></div>';
+  if (d.fecha_salida_taller) html += '<div class="info-item"><div class="card-label">Salida taller</div><div class="card-value">' + d.fecha_salida_taller + '</div></div>';
+  html += '<div class="info-item wide"><div class="card-label">IMEI</div><div class="card-value imei-text">' + d.imei + '</div></div></div>';
+  html += '<div class="divider"></div><div class="section-title">Acciones</div>';
+  if (d.fuente === 'STOCK' && !d.fecha_egreso) {
     html += '<button class="btn btn-success" onclick="irAVender()">💰 Marcar vendido</button>';
     html += '<button class="btn btn-warning" onclick="irAFallado()">⚠️ Registrar fallado</button>';
   } else if (d.fuente === 'FALLADOS') {
@@ -920,10 +1179,12 @@ function renderResult(d) {
 }
 
 function irAVender() {
-  document.getElementById('vender-modelo-card').innerHTML = '<div class="card-label">Equipo</div><div class="card-value">' + currentInfo.modelo + '</div>';
-  document.getElementById('vender-fecha').value = new Date().toISOString().split('T')[0];
-  document.getElementById('vender-cliente').value = '';
-  showStockScreen('screen-vender');
+  // Redirigir a Crear Pedido con el equipo pre-cargado
+  switchTab('pedidos');
+  irANuevoPedido();
+  if (currentIMEI && currentInfo && currentInfo.found) {
+    agregarEquipoPedido(currentIMEI, currentInfo.modelo || currentIMEI, currentInfo.precio || '');
+  }
 }
 async function confirmarVenta() {
   var cliente = document.getElementById('vender-cliente').value;
@@ -1154,6 +1415,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(get_cobranzas())
             elif path == "/api/cuenta":
                 self.send_json(get_cuenta(qs.get("id",[""])[0]))
+            elif path == "/api/pedidos":
+                self.send_json(get_pedidos())
             elif path == "/health":
                 self.send_json({"status": "ok", "time": datetime.datetime.now().isoformat()})
             elif path == "/get-imei":
@@ -1192,6 +1455,11 @@ class Handler(BaseHTTPRequestHandler):
                     body.get("nombre",""), body.get("responsable",""),
                     body.get("monto",0), body.get("tipo","DEUDOR"), body.get("concepto","")
                 ))
+            elif path == "/api/crear-pedido":
+                self.send_json(crear_pedido(
+                    body.get("cliente",""), body.get("equipos",[]),
+                    body.get("notas",""), body.get("fecha","")
+                ))
             elif path == "/api/sync":
                 threading.Thread(target=run_sync, daemon=True).start()
                 self.send_json({"ok": True, "mensaje": "Sync iniciado"})
@@ -1207,10 +1475,10 @@ if __name__ == "__main__":
     print(f"""
 ╔══════════════════════════════════════╗
 ║      TechCargo — Cloud Server        ║
-╠═════════════════════════════════════╣
+╠══════════════════════════════════════╣
 ║  Puerto: {PORT:<29}║
 ║  Data dir: {str(BASE_DIR):<27}║
 ╚══════════════════════════════════════╝
 """)
-    server = HTTPServer(("0.0.0.0", ", PORT), Handler)
+    server = HTTPServer(("0.0.0.0", PORT), Handler)
     server.serve_forever()
