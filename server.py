@@ -899,7 +899,7 @@ function renderStockPicker(items) {
     var nombre = (it.modelo||'Sin modelo') + (it.color ? ' · ' + it.color : '');
     var precio = it.precio ? '$' + it.precio : '';
     var bateria = it.bateria ? '🔋' + it.bateria + '%' : '';
-    return '<div class="list-item" onclick="agregarEquipoPedido(\'' + esc(it.imei) + '\',\'' + esc(it.modelo||'') + '\',\'' + esc(it.precio||'') + '\')" style="display:flex;align-items:center;gap:12px">' +
+    return '<div class="list-item" onclick="agregarEquipoPedido(\\'' + esc(it.imei) + '\\',\\'' + esc(it.modelo||'') + '\\',\\'' + esc(it.precio||'') + '\\')" style="display:flex;align-items:center;gap:12px">' +
       '<div style="flex:1">' +
       '<div class="list-item-title">' + nombre + '</div>' +
       '<div class="list-item-sub">' + [precio, bateria, 'IMEI: ' + it.imei].filter(Boolean).join(' · ') + '</div>' +
